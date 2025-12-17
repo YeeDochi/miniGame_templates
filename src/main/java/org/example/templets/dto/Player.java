@@ -10,7 +10,6 @@ import java.util.UUID;
 public class Player {
     private String id;        // 고유 ID (UUID)
     private String nickname;  // 닉네임
-    private String skinUrl;   // 프로필/스킨 이미지 (공통)
 
     private Map<String, Object> attributes = new HashMap<>();
 

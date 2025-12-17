@@ -29,6 +29,5 @@ public abstract class BaseGameRoom {
     }
 
     // [추상 메서드] 자식들이 반드시 구현해야 할 로직
-    // 예: 오목은 "착수 처리", 캐치마인드는 "그림 그리기 처리"
     public abstract GameMessage handleAction(GameMessage message);
 }

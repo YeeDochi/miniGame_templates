@@ -14,6 +14,6 @@ public class GameMessage {
     private String senderId;
     private String content;   // 채팅 메시지
 
-    // ★ 핵심: 게임마다 달라지는 데이터는 여기에 다 넣음 (좌표, 돌 색깔 등)
+    // 게임마다 달라지는 데이터는 여기에 다 넣음 (좌표, 돌 색깔 등)
     private Map<String, Object> data;
 }
