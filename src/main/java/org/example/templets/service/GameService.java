@@ -40,6 +40,12 @@ public class GameService {
 //
 //            messagingTemplate.convertAndSend("/topic/" + roomId, syncMsg);
 //        }
+        GameMessage syncMsg = GameMessage.builder()
+                .type("SYNC")
+                .sender("SYSTEM")
+                .data(room.getGameSnapshot()) // 구현체에서 오버라이딩한 메서드 호출
+                .build();
+        messagingTemplate.convertAndSendToUser(message.getSenderId(), "/topic/" + roomId, syncMsg);
     }
 
     // 게임 행동 처리 (핵심)

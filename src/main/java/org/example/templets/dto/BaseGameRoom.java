@@ -30,4 +30,6 @@ public abstract class BaseGameRoom {
 
     // [추상 메서드] 자식들이 반드시 구현해야 할 로직
     public abstract GameMessage handleAction(GameMessage message);
+
+    public abstract Map<String, Object> getGameSnapshot();
 }

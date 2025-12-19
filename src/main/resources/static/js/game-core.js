@@ -1,10 +1,14 @@
 // [game-core.js]
 const Core = (function() {
     let stompClient = null;
-    let myId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
+    let myId = localStorage.getItem('myId');
+    if (!myId) {
+        myId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+        localStorage.setItem('myId', myId);
+    }
     let myNickname = "";
     let currentRoomId = "";
     let GameImpl = null;
