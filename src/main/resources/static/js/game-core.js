@@ -7,16 +7,34 @@ const Core = (function() {
     });
     let myNickname = "";
     let currentRoomId = "";
-    let GameImpl = null; // 게임 구현체
-    let CONFIG = { apiPath: "", wsPath: "" };
+    let GameImpl = null;
+    let CONFIG = { apiPath: "", wsPath: "/ws" };
 
-    // --- 초기화 및 공통 기능 ---
+    function sendActionInternal(data) {
+        if (!stompClient || !currentRoomId) return;
+        stompClient.send(`/app/${currentRoomId}/action`, {}, JSON.stringify({
+            type: 'ACTION',
+            senderId: myId,
+            sender: myNickname,
+            data: data
+        }));
+    }
+
     function init(implementation, config) {
         GameImpl = implementation;
-        CONFIG = config;
-        document.getElementById('game-title-header').innerText = config.gameName;
-        // 테마 로드
-        if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+        if(config) {
+            if(config.apiPath !== undefined) CONFIG.apiPath = config.apiPath;
+            if(config.wsPath !== undefined) CONFIG.wsPath = config.wsPath;
+            if(config.gameName) {
+                const titleEl = document.getElementById('game-title-header');
+                if(titleEl) titleEl.innerText = config.gameName;
+            }
+        }
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') document.body.classList.add('dark-mode');
+        else document.body.classList.remove('dark-mode');
+
+        console.log("[GameCore] Initialized");
     }
 
     function login() {
@@ -42,33 +60,37 @@ const Core = (function() {
                     li.innerHTML = `<span style="font-weight:bold;">${r.roomName}</span> <button class="btn-default" onclick="Core.joinRoom('${r.roomId}', '${r.roomName}')">참가</button>`;
                     list.appendChild(li);
                 });
-            });
+            })
+            .catch(err => showAlert("방 목록 로드 실패"));
     }
 
     function createRoom() {
         const name = document.getElementById('roomNameInput').value;
         if (!name) return showAlert("방 제목을 입력하세요.");
-        // 게임별 추가 파라미터가 있다면 GameImpl에서 가져올 수 있음
         fetch(`${CONFIG.apiPath}/api/rooms?name=${encodeURIComponent(name)}`, { method: 'POST' })
             .then(res => res.json())
-            .then(room => joinRoom(room.roomId, room.roomName));
+            .then(room => joinRoom(room.roomId, room.roomName))
+            .catch(err => showAlert("방 생성 실패: " + err));
     }
 
+    // --- [중요 수정] 입장 로직 ---
     function joinRoom(roomId, roomName) {
         fetch(`${CONFIG.apiPath}/api/rooms/${roomId}`)
             .then(res => res.json())
             .then(room => {
                 currentRoomId = roomId;
-                document.getElementById('room-title-text').innerText = roomName;
+                const titleText = document.getElementById('room-title-text');
+                if(titleText) titleText.innerText = roomName;
+
                 document.getElementById('lobby-screen').classList.add('hidden');
                 document.getElementById('game-screen').classList.remove('hidden');
-                document.getElementById('messages').innerHTML = ''; // 채팅 초기화
+                document.getElementById('messages').innerHTML = '';
 
-                // ★ 게임별 무대 설치
-                const stage = document.getElementById('game-stage');
-                const tools = document.getElementById('game-tools-area');
-                const header = document.getElementById('custom-header-area');
-                if (GameImpl.onEnterRoom) GameImpl.onEnterRoom(stage, tools, header);
+                // ★★★ 여기 있던 stage.innerHTML = '' 코드를 삭제했습니다 ★★★
+                // 이제 index.html에 작성한 뼈대가 지워지지 않고 유지됩니다.
+
+                // 게임별 초기화 로직 실행
+                if (GameImpl.onEnterRoom) GameImpl.onEnterRoom();
 
                 connectStomp(roomId);
             })
@@ -78,30 +100,25 @@ const Core = (function() {
     function connectStomp(roomId) {
         const socket = new SockJS(CONFIG.wsPath);
         stompClient = Stomp.over(socket);
-        stompClient.debug = null; // 디버그 로그 끄기
+        stompClient.debug = null;
         stompClient.connect({}, function () {
-            // 입장 메시지
             stompClient.send(`/app/${roomId}/join`, {}, JSON.stringify({ type: 'JOIN', sender: myNickname, senderId: myId }));
-
-            // 구독
             stompClient.subscribe(`/topic/${roomId}`, function (msg) {
-                const body = JSON.parse(msg.body);
-                handleCommonMessage(body);
+                handleCommonMessage(JSON.parse(msg.body));
             });
+        }, function(error) {
+            showAlert("서버 연결 끊김");
         });
     }
 
     function handleCommonMessage(msg) {
-        // 공통 처리: 채팅, 퇴장, 게임오버
         if (msg.type === 'CHAT') showChat(msg.sender, msg.content);
         else if (msg.type === 'EXIT') showChat('SYSTEM', msg.content);
         else if (msg.type === 'GAME_OVER') {
             document.getElementById('ranking-modal').classList.remove('hidden');
-            document.getElementById('winnerName').innerText = (msg.winnerName || msg.sender) + " 승리!";
-            document.getElementById('winnerImage').src = msg.winnerSkin || "https://via.placeholder.com/100";
-            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+            const wName = (msg.data && msg.data.winnerName) ? msg.data.winnerName : "Unknown";
+            document.getElementById('winnerName').innerText = wName + " 승리!";
         }
-        // ★ 그 외(STONE, DRAW 등)는 구현체에게 넘김
         else {
             if (GameImpl.handleMessage) GameImpl.handleMessage(msg, myId);
         }
@@ -119,11 +136,9 @@ const Core = (function() {
         div.className = sender === 'SYSTEM' ? 'msg-system' : 'msg-item';
         div.innerHTML = sender === 'SYSTEM' ? msg : `<span style="font-weight:bold;">${sender}</span>: ${msg}`;
         const box = document.getElementById('messages');
-        box.appendChild(div);
-        box.scrollTop = box.scrollHeight;
+        if(box) { box.appendChild(div); box.scrollTop = box.scrollHeight; }
     }
 
-    // --- Helper Functions ---
     function showAlert(msg) {
         document.getElementById('alert-msg-text').innerText = msg;
         document.getElementById('alert-modal').classList.remove('hidden');
@@ -141,15 +156,26 @@ const Core = (function() {
         document.body.classList.toggle('dark-mode');
         localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
     }
+    function showConfirm(msg, callback) {
+        document.getElementById('confirm-msg-text').innerText = msg;
+        document.getElementById('confirm-modal').classList.remove('hidden');
+        pendingConfirmCallback = callback;
+    }
+    function closeConfirm() {
+        document.getElementById('confirm-modal').classList.add('hidden');
+        pendingConfirmCallback = null;
+    }
+    function confirmOk() {
+        if (pendingConfirmCallback) pendingConfirmCallback();
+        closeConfirm();
+    }
 
     return {
-        init, login, createRoom, joinRoom, loadRooms, sendChat, showAlert, closeAlert, closeRanking, exitRoom, toggleTheme,
-        startGame: () => stompClient.send(`/app/${currentRoomId}/action`, {}, JSON.stringify({ type: 'START', senderId: myId })),
-        // ★ 게임 로직에서 서버로 보낼 때 쓰는 함수
-        sendAction: (data) => {
-            stompClient.send(`/app/${currentRoomId}/action`, {}, JSON.stringify({
-                type: 'ACTION', senderId: myId, sender: myNickname, ...data
-            }));
-        }
+        init, login, createRoom, joinRoom, loadRooms, sendChat,
+        showAlert, closeAlert,
+        showConfirm, closeConfirm, confirmOk, // 모달 함수들 공개
+        closeRanking, exitRoom, toggleTheme,
+        startGame: () => sendActionInternal({ actionType: 'START' }),
+        sendAction: (data) => sendActionInternal(data)
     };
 })();

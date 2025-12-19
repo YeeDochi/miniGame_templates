@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 import org.example.templets.service.GameService;
 
@@ -16,9 +17,16 @@ public class GameController {
 
     // 입장
     @MessageMapping("/{roomId}/join")
-    public void join(@DestinationVariable String roomId, @Payload GameMessage message) {
+    public void join(@DestinationVariable String roomId,
+                     @Payload GameMessage message,
+                     SimpMessageHeaderAccessor headerAccessor) {
+        headerAccessor.getSessionAttributes().put("roomId", roomId);
+        headerAccessor.getSessionAttributes().put("senderId", message.getSenderId());
+        headerAccessor.getSessionAttributes().put("sender", message.getSender()); // 자동 연결 해제를 위함
+
         gameService.join(roomId, message);
     }
+
 
     // 채팅
     @MessageMapping("/{roomId}/chat")
