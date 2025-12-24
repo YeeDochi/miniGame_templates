@@ -35,6 +35,3 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
-tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-    mainClass.set("org.example.templets.TempletApplication") // 실제 메인 클래스 경로로 수정
-}
