@@ -13,6 +13,9 @@ import java.util.List;
 public class RoomController {
     private final RoomService roomService;
 
+    @RequestMapping(method = RequestMethod.HEAD)
+    public void healthCheck() {
+    }
     // 1. 방 목록 조회 (GET /api/rooms)
     @GetMapping
     public List<BaseGameRoom> findAllRooms() {
