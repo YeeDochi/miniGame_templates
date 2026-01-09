@@ -38,12 +38,30 @@ const Core = (function() {
         if (savedTheme === 'dark') document.body.classList.add('dark-mode');
         else document.body.classList.remove('dark-mode');
 
+        const savedNick = localStorage.getItem('nickname'); // 허브에서 로그인할 때 저장한 닉네임
+        if(savedNick) {
+            console.log("자동 로그인 감지: " + savedNick);
+            myNickname = savedNick; // 닉네임 설정
+
+            // UI 바로 넘기기 (입력창 숨김 -> 로비 표시)
+            const welcome = document.getElementById('welcome-msg');
+            if(welcome) welcome.innerText = ` ${myNickname}님`;
+
+            const loginScreen = document.getElementById('login-screen');
+            const lobbyScreen = document.getElementById('lobby-screen');
+
+            if(loginScreen) loginScreen.classList.add('hidden'); // 입력창 숨김
+            if(lobbyScreen) lobbyScreen.classList.remove('hidden'); // 로비 보여줌
+
+            loadRooms(); // 방 목록 불러오기
+        }
         console.log("[GameCore] Initialized");
     }
 
     function login() {
         const input = document.getElementById('nicknameInput').value.trim();
         if (!input) return showAlert("닉네임을 입력하세요.");
+        localStorage.setItem('nickname', input);
         myNickname = input;
         document.getElementById('welcome-msg').innerText = ` ${myNickname}님`;
         document.getElementById('login-screen').classList.add('hidden');
