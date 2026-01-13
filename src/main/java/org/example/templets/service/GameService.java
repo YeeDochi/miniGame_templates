@@ -85,28 +85,31 @@ public class GameService {
     }
     public void endGame(String roomId, List<Player> players) {
         BaseGameRoom room = roomService.findRoom(roomId);
+        if (room == null) return; // 방어 로직 추가
 
         for (Player player : players) {
-            // 1. 비회원(dbUsername 없음)은 점수 저장 건너뜀
+            // 1. 비회원 건너뛰기
             if (player.getDbUsername() == null) {
                 continue;
             }
 
-            // 2. 해당 게임의 점수 계산 (게임별 로직에 맞게 호출)
-            // 예: int score = room.calculateScore(player.getSenderId());
-            // Yacht_Dice 예시:
-            int totalScore = room.getTotalScore(player.getId());
+            // 2. 점수 가져오기 (형변환 필요)
+            // [주의] 실제 만드시는 게임 Room 클래스 이름으로 변경하세요 (예: OmokRoom)
+            int totalScore = 0;
+            if (room instanceof org.example.templets.dto.MyGameRoom) {
+                org.example.templets.dto.MyGameRoom myRoom = (org.example.templets.dto.MyGameRoom) room;
+                totalScore = myRoom.getTotalScore(player.getSenderId()); // getSenderId() 사용
+                //방을 가져와서 변경할 점수를 기입. 만약 승수로 판단하는게임이라면 그냥 없어된다. Score 는  0  이나 null로
+            }
 
-            // 3. 점수 전송 (게임 이름은 프로젝트별로 변경: 예 "Yacht_Dice", "Omok" 등)
+            // 3. 점수 전송
             scoreSender.sendScore(
                     player.getDbUsername(),
-                    "GAME_NAME_HERE", // 🔥 게임 종류 식별자 (DB에 저장될 이름)
-                    totalScore,       // 점수
-                    true              // isScore (true: 점수형, false: 승패형 등 정책에 따름)
+                    "My_Game_Title", // 🔥 실제 게임 이름으로 변경
+                    totalScore,
+                    true
             );
         }
-
-        // 방 삭제 또는 초기화 로직이 있다면 여기서 처리
     }
     public void exit(String roomId, GameMessage message) {
         BaseGameRoom room = roomService.findRoom(roomId);
