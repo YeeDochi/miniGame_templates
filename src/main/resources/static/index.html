@@ -73,6 +73,7 @@
             <input type="text" id="roomNameInput" placeholder="방 제목" value="새로운 게임방" style="flex:2;">
             <div id="game-options-area"></div>
             <button class="btn-primary" onclick="Core.createRoom()">방 만들기</button>
+            <button class="btn-default" onclick="Core.showRanking()">🏆 랭킹</button>
         </div>
         <div style="max-height: 400px; overflow-y: auto;">
             <div style="padding: 10px 16px; background:var(--bg-header); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between;">
@@ -125,7 +126,30 @@
         </div>
     </div>
 </div>
-
+<div id="leaderboard-modal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:2000;">
+    <div class="box" style="width:400px; margin: 0; display:flex; flex-direction:column; max-height:80vh;">
+        <div class="box-header" style="display:flex; justify-content:space-between; align-items:center; background: #ffd43b; color: #333;">
+            <span>🏆 TOP 5 명예의 전당</span>
+            <button onclick="Core.closeLeaderboard()" style="background:none; border:none; color:#333; font-size:16px; cursor:pointer;">&times;</button>
+        </div>
+        <div style="padding:10px;">
+            <table class="score-table" style="width:100%;">
+                <thead>
+                <tr>
+                    <th style="width:15%; text-align:center;">순위</th>
+                    <th style="text-align:left;">닉네임</th>
+                    <th style="width:25%; text-align:right;">점수</th>
+                </tr>
+                </thead>
+                <tbody id="ranking-list-body">
+                </tbody>
+            </table>
+        </div>
+        <div style="padding:16px; border-top: 1px solid var(--border-color); text-align:center;">
+            <button class="btn-primary" onclick="Core.closeLeaderboard()" style="width: 100%;">닫기</button>
+        </div>
+    </div>
+</div>
 <script src="/js/game-core.js"></script> <!-- 경로는 엔진엑스를 추가하면 수정할것.-->
 <script src="/js/card-core.js"></script> <!-- 카드 js-->
 <!--<script src="/js"></script> </body>-->   <!--추가 구현해야할 코드를 구현한뒤 연결-->
