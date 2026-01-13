@@ -8,14 +8,14 @@ import java.util.UUID;
 
 @Getter @Setter
 public class Player {
-    private String id;        // 고유 ID (UUID)
-    private String nickname;  // 닉네임
-
+    private String sender;   // 닉네임
+    private String senderId; // 웹소켓 세션 ID
+    private String dbUsername;
     private Map<String, Object> attributes = new HashMap<>();
 
-    public Player(String nickname, String id) {
-        this.nickname = nickname;
-        this.id = id;
+    public Player(String sender, String senderId) {
+        this.sender = sender;
+        this.senderId = senderId;
     }
 
     public void setAttribute(String key, Object value) {

@@ -33,4 +33,9 @@ public class RoomController {
     public BaseGameRoom getRoom(@PathVariable String roomId) {
         return roomService.findRoom(roomId);
     }
+
+    @GetMapping("/rankings")
+    public ResponseEntity<Object> getRanking() {
+        return scoreSender.ranking("GAME_NAME_HERE");
+    }
 }

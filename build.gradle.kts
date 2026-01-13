@@ -27,7 +27,8 @@ dependencies {
     // 롬복 (Lombok)
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
-
+    // 점수 기록을 위한 공통모듈
+    implementation(project(":common"))
     // 테스트
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }

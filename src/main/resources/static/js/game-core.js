@@ -224,7 +224,7 @@ const Core = (function() {
         closeConfirm();
     }
     function showRanking() {
-        fetch(`/auth/api/records/rankings?gameType=${CONFIG.apiPath.substring(1)}`)
+        fetch(`${CONFIG.apiPath}/api/rooms/rankings?gameType=${CONFIG.apiPath.substring(1)}`)
             .then(res => {
                 if(!res.ok) throw new Error("랭킹 로드 실패");
                 return res.json();

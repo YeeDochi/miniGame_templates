@@ -12,13 +12,24 @@ import org.springframework.stereotype.Service;
 public class GameService {
     private final RoomService roomService;
     private final SimpMessagingTemplate messagingTemplate;
-
+    private final org.example.common.service.ScoreSender scoreSender;
     // 입장 처리
     public void join(String roomId, GameMessage message) {
         BaseGameRoom room = roomService.findRoom(roomId);
         if (room == null) return;
 
-        room.enterUser(new Player(message.getSender(), message.getSenderId()));
+        Player newPlayer = new Player(message.getSender(), message.getSenderId());
+
+        // [추가] 로그인 유저 체크 및 ID 저장 로직
+        if (message.getData() != null && message.getData().containsKey("dbUsername")) {
+            String realId = (String) message.getData().get("dbUsername");
+            if (realId != null && !realId.equals("null") && !realId.isEmpty()) {
+                newPlayer.setDbUsername(realId);
+                System.out.println("✅ 로그인 유저 입장: " + newPlayer.getSender() + " (" + realId + ")");
+            }
+        }
+
+        room.enterUser(newPlayer);
 
         message.setType("JOIN");
         message.setContent(message.getSender() + "님이 입장하셨습니다.");
@@ -58,6 +69,12 @@ public class GameService {
         GameMessage result = room.handleAction(message);
 
         if (result != null) {
+            // [추가] 게임 종료 신호가 오면 점수 저장 로직 실행
+            if ("GAME_OVER".equals(result.getType())) {
+                // 방에 있는 모든 유저 정보를 넘겨줌
+                endGame(roomId, new ArrayList<>(room.getUsers().values()));
+            }
+
             broadcast(roomId, result);
         }
     }
@@ -66,7 +83,31 @@ public class GameService {
         // 정답 체크 로직이 필요하면 여기서 room.checkAnswer() 등을 호출 가능
         broadcast(roomId, message);
     }
+    public void endGame(String roomId, List<Player> players) {
+        BaseGameRoom room = roomService.findRoom(roomId);
 
+        for (Player player : players) {
+            // 1. 비회원(dbUsername 없음)은 점수 저장 건너뜀
+            if (player.getDbUsername() == null) {
+                continue;
+            }
+
+            // 2. 해당 게임의 점수 계산 (게임별 로직에 맞게 호출)
+            // 예: int score = room.calculateScore(player.getSenderId());
+            // Yacht_Dice 예시:
+            int totalScore = room.getTotalScore(player.getId());
+
+            // 3. 점수 전송 (게임 이름은 프로젝트별로 변경: 예 "Yacht_Dice", "Omok" 등)
+            scoreSender.sendScore(
+                    player.getDbUsername(),
+                    "GAME_NAME_HERE", // 🔥 게임 종류 식별자 (DB에 저장될 이름)
+                    totalScore,       // 점수
+                    true              // isScore (true: 점수형, false: 승패형 등 정책에 따름)
+            );
+        }
+
+        // 방 삭제 또는 초기화 로직이 있다면 여기서 처리
+    }
     public void exit(String roomId, GameMessage message) {
         BaseGameRoom room = roomService.findRoom(roomId);
         if (room != null) {
