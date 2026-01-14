@@ -263,12 +263,164 @@ const Core = (function() {
     function closeLeaderboard() {
         document.getElementById('leaderboard-modal').classList.add('hidden');
     }
+    function openImageModal() {
+        const modal = document.getElementById('image-modal');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        loadImages(); // 탭 구분 없이 바로 로드
+    }
+
+    function closeImageModal() {
+        document.getElementById('image-modal').classList.add('hidden');
+        document.getElementById('image-modal').style.display = 'none';
+        document.getElementById('linkInput').value = ''; // 입력창 초기화
+    }
+
+    // 통합 이미지 리스트 로드
+    function loadImages() {
+        const container = document.getElementById('server-img-list');
+        container.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#888;">로딩 중...</div>';
+
+        fetch(`/api/images/list?gameType=${CONFIG.apiPath.substring(1)}`)
+            .then(res => res.json())
+            .then(list => {
+                container.innerHTML = '';
+                if(!list || list.length === 0) {
+                    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#888;">이미지가 없습니다.</div>';
+                    return;
+                }
+                list.forEach(img => {
+                    // 이미지 카드
+                    const div = document.createElement('div');
+                    div.style.cssText = `
+                        background-image: url('${img.url}');
+                        background-size: cover; background-position: center;
+                        height: 100px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border-color);
+                        position: relative; transition: transform 0.1s;
+                    `;
+                    div.title = img.name;
+                    div.onmouseover = () => div.style.transform = "scale(1.05)";
+                    div.onmouseout = () => div.style.transform = "scale(1)";
+
+                    // 이미지 클릭 시 전송 (기존 로직)
+                    div.onclick = () => {
+                        showConfirm("이 이미지를 채팅방에 전송하시겠습니까?", () => {
+                            sendImageMessage(img.url);
+                            closeImageModal();
+                        });
+                    };
+
+                    // --- [추가] 즐겨찾기(별) 버튼 ---
+                    const starBtn = document.createElement('div');
+                    const isStarred = img.isStarred; // true or false
+                    starBtn.innerHTML = isStarred ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+
+                    starBtn.style.cssText = `
+                        position: absolute; top: 5px; right: 5px;
+                        color: ${isStarred ? '#ffc107' : '#ccc'}; 
+                        font-size: 16px; 
+                        background: rgba(0,0,0,0.3);
+                        border-radius: 50%; width: 24px; height: 24px;
+                        display: flex; justify-content: center; align-items: center;
+                        z-index: 10; transition: all 0.2s;
+                    `;
+
+                    // 별 클릭 이벤트
+                    starBtn.onclick = (e) => {
+                        e.stopPropagation(); // 부모(이미지 전송) 클릭 이벤트 방지
+                        toggleStar(img.id);
+                    };
+
+                    div.appendChild(starBtn);
+                    container.appendChild(div);
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                container.innerHTML = '<div style="text-align:center;">로드 실패</div>';
+            });
+    }
+    function toggleStar(fileId) {
+        fetch(`/api/images/${fileId}/star`, { method: 'POST' })
+            .then(res => {
+                if(res.ok) {
+                    // 성공하면 리스트 다시 로드 (순서 재정렬됨)
+                    loadImages();
+                } else {
+                    alert("즐겨찾기 변경 실패");
+                }
+            })
+            .catch(err => alert("오류: " + err));
+    }
+
+    // 1. 파일 업로드 (기존 유지)
+    function uploadFile(input) {
+        const file = input.files[0];
+        if(!file) return;
+        showConfirm(`'${file.name}' 파일을 업로드하시겠습니까?`, () => {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("username", myNickname);
+            formData.append("gameType", `${CONFIG.apiPath.substring(1)}`);
+
+            fetch('/api/images/upload', { method: 'POST', body: formData })
+                .then(res => {
+                    if(res.ok) {
+                        loadImages(); // 리스트 갱신
+                    } else {
+                        alert("업로드 실패");
+                    }
+                })
+                .catch(err => alert("오류: " + err));
+        });
+    }
+
+    // 2. [변경] 외부 링크 DB에 저장 (등록)
+    function addExternalLink() {
+        const url = document.getElementById('linkInput').value.trim();
+        if(!url) return alert("URL을 입력하세요");
+
+        showConfirm("이 링크를 갤러리에 등록하시겠습니까?", () => {
+            const formData = new FormData();
+            formData.append("url", url);
+            formData.append("username", myNickname);
+            formData.append("gameType", `${CONFIG.apiPath.substring(1)}`);
+
+            fetch('/api/images/link', { method: 'POST', body: formData })
+                .then(res => {
+                    if(res.ok) {
+                        document.getElementById('linkInput').value = '';
+                        loadImages();
+                    } else {
+                        alert("링크 등록 실패");
+                    }
+                })
+                .catch(err => alert("오류: " + err));
+        });
+    }
+
+    // 소켓 전송 (공통)
+    function sendImageMessage(url) {
+        if (!stompClient || !currentRoomId) return;
+
+        const imgTag = `<img src="${url}" width="200" style="border-radius:5px; vertical-align:middle;">`;
+
+        stompClient.send(`/app/${currentRoomId}/chat`, {}, JSON.stringify({
+            type: 'CHAT',    // [변경] IMAGE -> CHAT (일반 채팅으로 취급)
+            sender: myNickname,
+            senderId: myId,
+            content: imgTag  // [변경] URL 대신 이미지 태그 문자열 전송
+        }));
+    }
     return {
         init, login, createRoom, joinRoom, loadRooms, sendChat,
         showAlert, closeAlert,
         showConfirm, closeConfirm, confirmOk, // 모달 함수들 공개
         closeRanking, exitRoom, toggleTheme,
-        showRanking, closeLeaderboard,
+        showRanking,
+        closeLeaderboard,
+        openImageModal, closeImageModal,
+        uploadFile, addExternalLink,
         startGame: () => sendActionInternal({ actionType: 'START' }),
         sendAction: (data) => sendActionInternal(data)
     };
