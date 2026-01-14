@@ -276,12 +276,13 @@ const Core = (function() {
         document.getElementById('linkInput').value = ''; // 입력창 초기화
     }
 
-    // 통합 이미지 리스트 로드
+
     function loadImages() {
         const container = document.getElementById('server-img-list');
         container.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#888;">로딩 중...</div>';
-
-        fetch(`/api/images/list?gameType=${CONFIG.apiPath.substring(1)}`)
+        const filterCheckbox = document.getElementById('starFilterCheckbox');
+        const isFilterOn = filterCheckbox ? filterCheckbox.checked : false;
+        fetch(`/api/images/list?username=${encodeURIComponent(myNickname)}`)
             .then(res => res.json())
             .then(list => {
                 container.innerHTML = '';
@@ -289,20 +290,38 @@ const Core = (function() {
                     container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#888;">이미지가 없습니다.</div>';
                     return;
                 }
+                if (isFilterOn) {
+                    list = list.filter(img => img.isStarred === true);
+                }
+
+                list.sort((a, b) => {
+                    // 둘 다 별표 상태가 같다면? -> ID 기준 내림차순(최신순)
+                    if (a.isStarred === b.isStarred) {
+                        return b.id - a.id;
+                    }
+                    // 별표 상태가 다르다면? -> 별표(true)가 앞으로(-1)
+                    return a.isStarred ? -1 : 1;
+                });
+
+                // 필터링 결과가 없을 경우 처리
+                if (list.length === 0) {
+                    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#888;">즐겨찾기한 이미지가 없습니다.</div>';
+                    return;
+                }
+
                 list.forEach(img => {
-                    // 이미지 카드
                     const div = document.createElement('div');
+                    // ... (기존 스타일 유지) ...
                     div.style.cssText = `
                         background-image: url('${img.url}');
                         background-size: cover; background-position: center;
                         height: 100px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border-color);
                         position: relative; transition: transform 0.1s;
                     `;
+                    // ... (기존 이벤트 유지) ...
                     div.title = img.name;
                     div.onmouseover = () => div.style.transform = "scale(1.05)";
                     div.onmouseout = () => div.style.transform = "scale(1)";
-
-                    // 이미지 클릭 시 전송 (기존 로직)
                     div.onclick = () => {
                         showConfirm("이 이미지를 채팅방에 전송하시겠습니까?", () => {
                             sendImageMessage(img.url);
@@ -310,11 +329,10 @@ const Core = (function() {
                         });
                     };
 
-                    // --- [추가] 즐겨찾기(별) 버튼 ---
+                    // --- [기존] 즐겨찾기 버튼 ---
                     const starBtn = document.createElement('div');
-                    const isStarred = img.isStarred; // true or false
+                    const isStarred = img.isStarred;
                     starBtn.innerHTML = isStarred ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
-
                     starBtn.style.cssText = `
                         position: absolute; top: 5px; right: 5px;
                         color: ${isStarred ? '#ffc107' : '#ccc'}; 
@@ -324,14 +342,31 @@ const Core = (function() {
                         display: flex; justify-content: center; align-items: center;
                         z-index: 10; transition: all 0.2s;
                     `;
-
-                    // 별 클릭 이벤트
                     starBtn.onclick = (e) => {
-                        e.stopPropagation(); // 부모(이미지 전송) 클릭 이벤트 방지
+                        e.stopPropagation();
                         toggleStar(img.id);
                     };
-
                     div.appendChild(starBtn);
+
+                    // --- [추가] 삭제 버튼 (내가 올린 것만 보임) ---
+                    const delBtn = document.createElement('div');
+                    delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                    delBtn.style.cssText = `
+                        position: absolute; top: 5px; left: 5px;
+                        color: #ff6b6b;
+                        font-size: 14px;
+                        background: rgba(0,0,0,0.6);
+                        border-radius: 50%; width: 24px; height: 24px;
+                        display: flex; justify-content: center; align-items: center;
+                        z-index: 10; transition: all 0.2s;
+                    `;
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        // username 파라미터도 필요 없으므로 제거하고 ID만 보냄
+                        showConfirm("정말 삭제하시겠습니까?", () => deleteImage(img.id));
+                    };
+                    div.appendChild(delBtn);
+
                     container.appendChild(div);
                 });
             })
@@ -340,19 +375,32 @@ const Core = (function() {
                 container.innerHTML = '<div style="text-align:center;">로드 실패</div>';
             });
     }
-    function toggleStar(fileId) {
-        fetch(`/api/images/${fileId}/star`, { method: 'POST' })
+
+    function deleteImage(fileId) {
+        // ?username=... 부분 제거 (서버가 검사 안 하니까 필요 없음)
+        fetch(`/api/images/${fileId}`, {
+            method: 'DELETE'
+        })
             .then(res => {
                 if(res.ok) {
-                    // 성공하면 리스트 다시 로드 (순서 재정렬됨)
-                    loadImages();
+                    loadImages(); // 목록 갱신
                 } else {
-                    alert("즐겨찾기 변경 실패");
+                    res.text().then(msg => showAlert("삭제 실패: " + msg));
                 }
             })
-            .catch(err => alert("오류: " + err));
+            .catch(err => showAlert("오류: " + err));
     }
-
+    function toggleStar(fileId) {
+        // URL에 username 추가
+        fetch(`/api/images/${fileId}/star?username=${encodeURIComponent(myNickname)}`, {
+            method: 'POST'
+        })
+            .then(res => res.json())
+            .then(isStarred => {
+                // UI 업데이트 (loadImages를 다시 호출하거나 해당 아이콘만 변경)
+                loadImages();
+            });
+    }
     // 1. 파일 업로드 (기존 유지)
     function uploadFile(input) {
         const file = input.files[0];
@@ -368,17 +416,17 @@ const Core = (function() {
                     if(res.ok) {
                         loadImages(); // 리스트 갱신
                     } else {
-                        alert("업로드 실패");
+                        showAlert("업로드 실패");
                     }
                 })
-                .catch(err => alert("오류: " + err));
+                .catch(err => showAlert("오류: " + err));
         });
     }
 
     // 2. [변경] 외부 링크 DB에 저장 (등록)
     function addExternalLink() {
         const url = document.getElementById('linkInput').value.trim();
-        if(!url) return alert("URL을 입력하세요");
+        if(!url) return showAlert("URL을 입력하세요");
 
         showConfirm("이 링크를 갤러리에 등록하시겠습니까?", () => {
             const formData = new FormData();
@@ -392,10 +440,10 @@ const Core = (function() {
                         document.getElementById('linkInput').value = '';
                         loadImages();
                     } else {
-                        alert("링크 등록 실패");
+                        showAlert("링크 등록 실패");
                     }
                 })
-                .catch(err => alert("오류: " + err));
+                .catch(err => showAlert("오류: " + err));
         });
     }
 
@@ -403,7 +451,7 @@ const Core = (function() {
     function sendImageMessage(url) {
         if (!stompClient || !currentRoomId) return;
 
-        const imgTag = `<img src="${url}" width="200" style="border-radius:5px; vertical-align:middle;">`;
+        const imgTag = `<br><img src="${url}" width="200" style="border-radius:5px; vertical-align:middle;">`;
 
         stompClient.send(`/app/${currentRoomId}/chat`, {}, JSON.stringify({
             type: 'CHAT',    // [변경] IMAGE -> CHAT (일반 채팅으로 취급)
@@ -420,7 +468,7 @@ const Core = (function() {
         showRanking,
         closeLeaderboard,
         openImageModal, closeImageModal,
-        uploadFile, addExternalLink,
+        uploadFile, addExternalLink,loadImages,
         startGame: () => sendActionInternal({ actionType: 'START' }),
         sendAction: (data) => sendActionInternal(data)
     };
