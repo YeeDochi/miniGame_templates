@@ -171,3 +171,27 @@ tr:hover { background-color: var(--row-hover); }
 
 .btn-go.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 .btn-go:hover { border-color: var(--text-secondary); }
+
+::-webkit-scrollbar {
+    width: 8px;  /* 세로 스크롤바 너비 */
+    height: 8px; /* 가로 스크롤바 높이 */
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; /* 트랙 배경 투명 */
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--border-color); /* 테두리 색상 사용 */
+    border-radius: 4px; /* 둥근 모서리 */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-secondary); /* 마우스 올렸을 때 조금 더 진하게 */
+}
+
+/* 파이어폭스 대응 (선택 사항) */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
