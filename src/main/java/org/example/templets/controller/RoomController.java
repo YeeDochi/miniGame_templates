@@ -1,8 +1,10 @@
 package org.example.templets.controller;
 
+import org.example.common.service.ScoreSender;
 import org.example.templets.dto.BaseGameRoom;
 import org.example.templets.service.RoomService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RoomController {
     private final RoomService roomService;
+    private final ScoreSender scoreSender;
 
     @RequestMapping(method = RequestMethod.HEAD)
     public void healthCheck() {

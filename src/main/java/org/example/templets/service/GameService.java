@@ -5,6 +5,9 @@ import org.example.templets.dto.GameMessage;
 import org.example.templets.dto.Player;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -96,18 +99,17 @@ public class GameService {
             // 2. 점수 가져오기 (형변환 필요)
             // [주의] 실제 만드시는 게임 Room 클래스 이름으로 변경하세요 (예: OmokRoom)
             int totalScore = 0;
-            if (room instanceof org.example.templets.dto.MyGameRoom) {
-                org.example.templets.dto.MyGameRoom myRoom = (org.example.templets.dto.MyGameRoom) room;
-                totalScore = myRoom.getTotalScore(player.getSenderId()); // getSenderId() 사용
-                //방을 가져와서 변경할 점수를 기입. 만약 승수로 판단하는게임이라면 그냥 없어된다. Score 는  0  이나 null로
-            }
+//            if (room instanceof org.example.templets.dto.MyGameRoom) {
+//                org.example.templets.dto.MyGameRoom myRoom = (org.example.templets.dto.MyGameRoom) room;
+//                totalScore = myRoom.getTotalScore(player.getSenderId()); // getSenderId() 사용
+//                //방을 가져와서 변경할 점수를 기입. 만약 승수로 판단하는게임이라면 그냥 없어된다. Score 는  0  이나 null로
+//            }
 
             // 3. 점수 전송
             scoreSender.sendScore(
                     player.getDbUsername(),
                     "My_Game_Title", // 🔥 실제 게임 이름으로 변경
-                    totalScore,
-                    true
+                    totalScore
             );
         }
     }
