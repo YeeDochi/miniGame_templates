@@ -12,7 +12,7 @@ const Core = (function() {
     let myNickname = "";
     let currentRoomId = "";
     let GameImpl = null;
-    let CONFIG = { apiPath: "", wsPath: "/ws" };
+    let CONFIG = { apiPath: "/templates", wsPath: "/templates/ws" };
 
     function sendActionInternal(data) {
         if (!stompClient || !currentRoomId) return;
