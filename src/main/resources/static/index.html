@@ -42,7 +42,13 @@
         <a href="#" class="repo-name">gameName</a>
         <span class="badge">Public</span>
     </div>
-    <button class="theme-btn" onclick="Core.toggleTheme()">Dark/Light</button>
+    <div style="display: flex; gap: 8px; align-items: center; margin-left: auto;">
+        <div id="loggedInArea" class="hidden" style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--text-primary); font-size: 14px;">👋 <b id="userNickname">User</b></span>
+            <button class="btn-default" onclick="Core.logout()" style="padding: 4px 8px; font-size: 12px;">Sign out</button>
+        </div>
+        <button class="theme-btn" onclick="Core.toggleTheme()">Dark/Light</button>
+    </div>
 </header>
 
 
