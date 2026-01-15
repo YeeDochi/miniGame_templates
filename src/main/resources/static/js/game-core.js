@@ -553,10 +553,10 @@ const Core = (function() {
         const imgTag = `<img src="${url}" class="chat-img">`;
 
         stompClient.send(`/app/${currentRoomId}/chat`, {}, JSON.stringify({
-            type: 'CHAT',    // [변경] IMAGE -> CHAT (일반 채팅으로 취급)
+            type: 'CHAT',
             sender: myNickname,
             senderId: myId,
-            content: imgTag  // [변경] URL 대신 이미지 태그 문자열 전송
+            content: imgTag
         }));
     }
     return {
