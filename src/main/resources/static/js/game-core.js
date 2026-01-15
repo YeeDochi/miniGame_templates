@@ -550,7 +550,7 @@ const Core = (function() {
     function sendImageMessage(url) {
         if (!stompClient || !currentRoomId) return;
 
-        const imgTag = `<br><img src="${url}" class="chat-img">`;
+        const imgTag = `<img src="${url}" class="chat-img">`;
 
         stompClient.send(`/app/${currentRoomId}/chat`, {}, JSON.stringify({
             type: 'CHAT',    // [변경] IMAGE -> CHAT (일반 채팅으로 취급)
