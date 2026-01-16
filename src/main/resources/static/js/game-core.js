@@ -1,18 +1,14 @@
 // [game-core.js]
 const Core = (function() {
     let stompClient = null;
-    let myId = localStorage.getItem('myId');
-    if (!myId) {
-        myId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-        localStorage.setItem('myId', myId);
-    }
+    let myId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
     let myNickname = "";
     let currentRoomId = "";
     let GameImpl = null;
-    let CONFIG = { apiPath: "/templates", wsPath: "/templates/ws" };
+    let CONFIG = { apiPath: "", wsPath: "/ws" };
 
     function sendActionInternal(data) {
         if (!stompClient || !currentRoomId) return;
@@ -114,13 +110,14 @@ const Core = (function() {
         if (!input) return showAlert("닉네임을 입력하세요.");
         localStorage.setItem('nickname', input);
         myNickname = input;
-        document.getElementById('welcome-msg').innerText = ` ${myNickname}님`
         const loggedInArea = document.getElementById('loggedInArea');
         const userNickname = document.getElementById('userNickname');
         if(loggedInArea) loggedInArea.classList.remove('hidden');
         if(userNickname) userNickname.innerText = myNickname;
+        document.getElementById('welcome-msg').innerText = ` ${myNickname}님`;
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('lobby-screen').classList.remove('hidden');
+
         loadRooms();
     }
 
@@ -131,10 +128,17 @@ const Core = (function() {
                 const list = document.getElementById('room-list');
                 list.innerHTML = '';
                 if (!rooms.length) list.innerHTML = '<li style="padding:15px; text-align:center; color:#888;">생성된 방이 없습니다.</li>';
+
                 rooms.forEach(r => {
                     const li = document.createElement('li');
                     li.className = 'room-item';
-                    li.innerHTML = `<span style="font-weight:bold;">${r.roomName}</span> <button class="btn-default" onclick="Core.joinRoom('${r.roomId}', '${r.roomName}')">참가</button>`;
+
+                    // [수정] 게임 중인 경우 버튼 비활성화 및 텍스트 변경
+                    const btnHtml = r.playing
+                        ? `<button class="btn-default" disabled style="opacity:0.6; cursor:not-allowed;">진행 중</button>`
+                        : `<button class="btn-default" onclick="Core.joinRoom('${r.roomId}', '${r.roomName}')">참가</button>`;
+
+                    li.innerHTML = `<span style="font-weight:bold;">${r.roomName}</span> ${btnHtml}`;
                     list.appendChild(li);
                 });
             })
@@ -142,12 +146,29 @@ const Core = (function() {
     }
 
     function createRoom() {
-        const name = document.getElementById('roomNameInput').value;
+        const nameInput = document.getElementById('roomNameInput');
+        const createBtn = document.querySelector('button[onclick="Core.createRoom()"]');
+        const name = nameInput.value;
+
         if (!name) return showAlert("방 제목을 입력하세요.");
+
+        // [추가] 중복 클릭 방지: 버튼을 비활성화하고 상태를 표시합니다.
+        if (createBtn.disabled) return;
+        createBtn.disabled = true;
+        const originalText = createBtn.innerText;
+        createBtn.innerText = "생성 중...";
+
         fetch(`${CONFIG.apiPath}/api/rooms?name=${encodeURIComponent(name)}`, { method: 'POST' })
             .then(res => res.json())
-            .then(room => joinRoom(room.roomId, room.roomName))
-            .catch(err => showAlert("방 생성 실패: " + err));
+            .then(room => {
+                joinRoom(room.roomId, room.roomName);
+            })
+            .catch(err => {
+                showAlert("방 생성 실패: " + err);
+                // 에러 발생 시에만 버튼을 다시 활성화합니다.
+                createBtn.disabled = false;
+                createBtn.innerText = originalText;
+            });
     }
     function refreshUserCount() {
         if (!currentRoomId) return;
@@ -158,14 +179,17 @@ const Core = (function() {
             .then(room => {
                 const countEl = document.getElementById('room-user-count');
                 if (countEl && room.users) {
+                    // 1. 서버에서 받은 유저 값(닉네임들)을 배열로 추출
                     const userValues = Object.values(room.users);
                     let count = userValues.length;
 
+                    // 2. 내 닉네임이 명단에 있는지 확인 (단순 문자열이거나, 객체일 경우 nickname 필드 확인)
                     const amIInTheList = userValues.some(u =>
                         (typeof u === 'string' && u === myNickname) ||
                         (typeof u === 'object' && u.nickname === myNickname)
                     );
 
+                    // 3. 나는 분명 들어와 있는데 명단에 없다면? -> 보여주기용 카운트에 +1
                     if (!amIInTheList) {
                         count += 1;
                     }
@@ -175,11 +199,16 @@ const Core = (function() {
             })
             .catch(err => console.error("인원수 갱신 실패", err));
     }
-
+    // --- [중요 수정] 입장 로직 ---
     function joinRoom(roomId, roomName) {
         fetch(`${CONFIG.apiPath}/api/rooms/${roomId}`)
             .then(res => res.json())
             .then(room => {
+                if (room.playing) {
+                    showAlert("이미 게임이 시작되어 입장할 수 없습니다.");
+                    loadRooms(); // 목록 새로고침
+                    return;
+                }
                 currentRoomId = roomId;
                 const titleText = document.getElementById('room-title-text');
                 if(titleText) titleText.innerText = roomName;
@@ -246,15 +275,12 @@ const Core = (function() {
         }
     }
 
-
     function sendChat() {
         const input = document.getElementById('chatInput');
         if (!input.value.trim()) return;
         stompClient.send(`/app/${currentRoomId}/chat`, {}, JSON.stringify({ type: 'CHAT', sender: myNickname, senderId: myId, content: input.value }));
         input.value = '';
     }
-
-    // [game-core.js] showChat 함수 교체
 
     function showChat(sender, msg) {
         const div = document.createElement('div');
@@ -297,7 +323,6 @@ const Core = (function() {
         }
     }
 
-
     function showAlert(msg) {
         document.getElementById('alert-msg-text').innerText = msg;
         document.getElementById('alert-modal').classList.remove('hidden');
@@ -339,6 +364,7 @@ const Core = (function() {
         return "🌱";                     // 0승: 새싹
     }
     function showRanking() {
+
         fetch(`${CONFIG.apiPath}/api/rooms/rankings?gameType=${CONFIG.apiPath.substring(1)}`)
             .then(res => {
                 if(!res.ok) throw new Error("랭킹 로드 실패");
@@ -397,7 +423,6 @@ const Core = (function() {
         document.getElementById('image-modal').style.display = 'none';
         document.getElementById('linkInput').value = ''; // 입력창 초기화
     }
-
 
     function loadImages() {
         const container = document.getElementById('server-img-list');
@@ -576,14 +601,14 @@ const Core = (function() {
         const imgTag = `<img src="${url}" class="chat-img">`;
 
         stompClient.send(`/app/${currentRoomId}/chat`, {}, JSON.stringify({
-            type: 'CHAT',
+            type: 'CHAT',    // [변경] IMAGE -> CHAT (일반 채팅으로 취급)
             sender: myNickname,
             senderId: myId,
-            content: imgTag
+            content: imgTag  // [변경] URL 대신 이미지 태그 문자열 전송
         }));
     }
     return {
-        init, login, createRoom, joinRoom, loadRooms, sendChat,
+        init, login, logout, createRoom, joinRoom, loadRooms, sendChat,
         showAlert, closeAlert,
         showConfirm, closeConfirm, confirmOk, // 모달 함수들 공개
         closeRanking, exitRoom, toggleTheme,
