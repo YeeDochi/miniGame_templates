@@ -20,7 +20,7 @@ public class GameService {
     public void join(String roomId, GameMessage message) {
         BaseGameRoom room = roomService.findRoom(roomId);
         if (room == null) return;
-
+        if (room.isPlaying()) return;
         Player newPlayer = new Player(message.getSender(), message.getSenderId());
 
         // [추가] 로그인 유저 체크 및 ID 저장 로직
