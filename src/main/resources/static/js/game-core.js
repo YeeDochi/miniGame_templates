@@ -19,7 +19,20 @@ const Core = (function() {
             data: data
         }));
     }
+    function toggleChat() {
+        const panel = document.getElementById('right-panel');
+        const btn = document.getElementById('mobile-chat-btn');
 
+        // 클래스를 토글해서 껐다 켰다 함
+        panel.classList.toggle('active');
+
+        // 채팅창이 열려있으면 버튼 숨기기 (선택사항)
+        if(panel.classList.contains('active')) {
+            btn.style.display = 'none';
+        } else {
+            btn.style.display = 'flex';
+        }
+    }
     function init(implementation, config) {
         GameImpl = implementation;
         if(config) {
@@ -613,7 +626,7 @@ const Core = (function() {
         showConfirm, closeConfirm, confirmOk, // 모달 함수들 공개
         closeRanking, exitRoom, toggleTheme,
         showRanking,
-        closeLeaderboard,
+        closeLeaderboard,toggleChat,
         openImageModal, closeImageModal,
         uploadFile, addExternalLink,loadImages,
         startGame: () => sendActionInternal({ actionType: 'START' }),

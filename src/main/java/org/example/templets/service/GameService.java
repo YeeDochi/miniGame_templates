@@ -28,7 +28,7 @@ public class GameService {
             String realId = (String) message.getData().get("dbUsername");
             if (realId != null && !realId.equals("null") && !realId.isEmpty()) {
                 newPlayer.setDbUsername(realId);
-                System.out.println("✅ 로그인 유저 입장: " + newPlayer.getSender() + " (" + realId + ")");
+                System.out.println("✅ 로그인 유저 입장: " + newPlayer.getNickname() + " (" + realId + ")");
             }
         }
 
