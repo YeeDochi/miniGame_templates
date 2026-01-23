@@ -5,16 +5,23 @@
     <title>game-hub/gameName</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="/card-style.css"> <!--카드 css-->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <link rel="stylesheet" href="/card-style.css"> <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" href="https://cdn.simpleicons.org/github/ffffff" type="image/svg+xml">
     <style>
-        /* 공통 스타일 보강 */
+        /* [공통 스타일] */
         .hidden { display: none !important; }
+
+        .game-layout {
+            display: flex;
+            gap: 20px;
+            /* 화면이 좁아져도 레이아웃이 깨지지 않도록 최소 높이 설정 */
+            min-height: 500px;
+        }
+
         .game-stage {
             border: 1px solid var(--border-color);
             background: white;
@@ -22,73 +29,64 @@
             position: relative;
             border-radius: 6px;
             overflow: hidden;
+            flex-shrink: 0; /* 게임 화면 크기 고정 */
         }
-        /* 채팅창 등 기존 CSS 유지 */
-        #chat-container { border: 1px solid var(--border-color); border-radius: 6px; background: var(--box-bg); display: flex; flex-direction: column; height: 500px; flex: 1; }
+
+        /* [PC용 채팅창 스타일] */
+        #chat-container {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--box-bg);
+            display: flex; /* PC에서는 항상 보임 */
+            flex-direction: column;
+            height: 500px;
+            flex: 1; /* 남은 공간 차지 */
+            min-width: 300px; /* 너무 좁아지지 않도록 최소 너비 설정 */
+        }
 
         .msg-item { padding: 4px 0; border-bottom: 1px solid var(--border-color); }
         .msg-system { background: var(--bg-header); padding: 8px; border-radius: 6px; text-align: center; margin: 5px 0; color: var(--text-secondary); font-size: 12px; }
-        .game-layout { display: flex; gap: 20px; }
         .room-item { padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; cursor: pointer;}
+
+        /* PC에서는 모바일 버튼 숨김 */
         #mobile-chat-btn, #mobile-chat-close-btn { display: none !important; }
 
         /* =========================================
-           모바일 반응형 (Yacht/Mine 스타일 참조)
+           [모바일 반응형 스타일] (768px 이하)
            ========================================= */
         @media (max-width: 768px) {
-            /* [헤더 최적화] */
+            /* 헤더 최적화 */
             header { padding: 8px 10px !important; gap: 5px !important; }
-            .repo-breadcrumb .user-name,
-            .repo-breadcrumb .repo-name { font-size: 14px !important; }
-
-            /* 테마 버튼 간소화 */
-            header .theme-btn {
-                font-size: 0 !important; width: 32px; height: 32px; padding: 0 !important;
-                display: flex; align-items: center; justify-content: center;
-            }
+            .repo-breadcrumb .user-name, .repo-breadcrumb .repo-name { font-size: 14px !important; }
+            header .theme-btn { font-size: 0 !important; width: 32px; height: 32px; padding: 0 !important; display: flex; align-items: center; justify-content: center; }
             header .theme-btn::after { content: "🌓"; font-size: 16px; color: var(--text-primary); }
+            #loggedInArea span { white-space: nowrap; font-size: 12px !important; max-width: 70px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: middle; }
 
-            /* 닉네임 말줄임 */
-            #loggedInArea { gap: 5px; }
-            #loggedInArea span {
-                white-space: nowrap; font-size: 12px !important;
-                max-width: 70px; overflow: hidden; text-overflow: ellipsis;
-                display: inline-block; vertical-align: middle;
-            }
-
-            /* 컨테이너 및 박스 최적화 */
+            /* 컨테이너 최적화 */
             .container { padding: 0 5px !important; width: 100%; box-sizing: border-box; }
             body, html { overflow-x: hidden; width: 100%; }
             .box { width: 100% !important; margin: 0 auto; }
 
-            /* 대기실 목록 깨짐 방지 */
-            #lobby-screen .box > div:last-child > div:first-child {
-                display: flex !important; justify-content: space-between !important; align-items: center !important;
-            }
-            #lobby-screen .box > div:last-child > div:first-child span { white-space: nowrap !important; flex-shrink: 0; }
-            #lobby-screen .box > div:nth-child(2) { flex-direction: column !important; gap: 8px !important; }
-            #roomNameInput, #lobby-screen button { width: 100% !important; margin: 0 !important; }
+            /* 게임 화면 세로 배치 */
+            .game-layout { flex-direction: column !important; align-items: center; gap: 15px; min-height: auto; }
+            .game-stage { width: 100%; max-width: 100%; height: auto; min-height: 300px; }
 
-            /* 게임 화면 레이아웃 세로 배치 */
-            .game-meta {
-                flex-direction: column !important; align-items: flex-start !important; gap: 10px !important;
-            }
+            /* 게임 메타 정보 세로 배치 */
+            .game-meta { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
             .game-meta > div:last-child { width: 100%; display: flex; justify-content: flex-end; gap: 10px; }
             .game-meta button { flex: 1; }
 
-            .game-layout { flex-direction: column !important; align-items: center; gap: 15px; }
-            .game-stage { width: 100%; max-width: 100%; height: auto; min-height: 300px; }
-
-            /* 채팅창 모바일용 (플로팅) */
+            /* [모바일 채팅창 - 평소엔 숨김] */
             #chat-container {
-                display: none; /* 기본 숨김 */
+                display: none; /* PC 스타일 덮어쓰기: 숨김 */
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                 z-index: 2000; margin: 0; border: none; border-radius: 0;
                 background-color: var(--box-bg);
             }
+            /* 활성화 클래스가 붙으면 전체 화면으로 표시 */
             #chat-container.active { display: flex !important; }
 
-            /* 모바일 채팅 버튼 표시 */
+            /* 모바일 채팅 열기 버튼 표시 */
             #mobile-chat-btn {
                 display: flex !important; position: fixed; bottom: 20px; right: 20px;
                 width: 50px; height: 50px; border-radius: 50%;
@@ -97,13 +95,17 @@
                 box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1500;
                 border: none; cursor: pointer;
             }
+            /* 모바일 채팅 닫기 버튼 표시 */
             #mobile-chat-close-btn {
                 display: block !important; background: none; border: none; font-size: 1.2em;
                 cursor: pointer; color: var(--text-primary); padding: 5px;
             }
+
+            /* 로비 입력창 수정 */
+            #lobby-screen .box > div:nth-child(2) { flex-direction: column !important; gap: 8px !important; }
+            #roomNameInput, #lobby-screen button { width: 100% !important; margin: 0 !important; }
         }
     </style>
-    <link rel="icon" href="https://cdn.simpleicons.org/github/ffffff" type="image/svg+xml">
 </head>
 <body>
 
@@ -157,6 +159,7 @@
 
 <div id="game-screen" class="container hidden">
     <button id="mobile-chat-btn" onclick="Core.toggleChat()">💬</button>
+
     <div class="game-meta" style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
         <div>
             <strong id="room-title-text" style="font-size: 18px;">방 제목</strong>
@@ -177,13 +180,13 @@
 
         <div id="chat-container">
             <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; padding: 10px; border-bottom: 1px solid var(--border-color); background: var(--bg-header);">
-                <span>채팅</span>
+                <span style="font-weight:bold; font-size:13px; color:var(--text-secondary);">채팅</span>
                 <button id="mobile-chat-close-btn" onclick="Core.toggleChat()">❌</button>
             </div>
 
             <div id="messages" style="flex: 1; overflow-y: auto; padding: 10px;"></div>
 
-            <div class="msg-input-box" style="padding: 10px; border-top: 1px solid var(--border-color); display:flex; gap:5px;">
+            <div class="msg-input-box" style="padding: 10px; border-top: 1px solid var(--border-color); display:flex; gap:5px; background: var(--box-bg);">
                 <button class="btn-default" onclick="Core.openImageModal()" style="padding: 0 8px;" title="이미지 전송">
                     <i class="fas fa-images"></i>
                 </button>
@@ -286,7 +289,6 @@
     </div>
 </div>
 </body>
-<script src="/templates/js/game-core.js"></script> <!-- 경로는 엔진엑스를 추가하면 수정할것.-->
-<script src="/templates/js/card-core.js"></script> <!-- 카드 js-->
-<!--<script src="/js"></script> </body>-->   <!--추가 구현해야할 코드를 구현한뒤 연결-->
+<script src="/templates/js/game-core.js"></script>
+<script src="/templates/js/card-core.js"></script>
 </html>
