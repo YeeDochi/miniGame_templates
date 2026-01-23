@@ -20,17 +20,23 @@ const Core = (function() {
         }));
     }
     function toggleChat() {
-        const panel = document.getElementById('right-panel');
+        // index.html에서 ID를 chat-container로 변경했으므로 여기서도 맞춰야 합니다.
+        const panel = document.getElementById('chat-container');
         const btn = document.getElementById('mobile-chat-btn');
 
-        // 클래스를 토글해서 껐다 켰다 함
+        if(!panel) {
+            console.error("ID가 chat-container인 요소를 찾을 수 없습니다.");
+            return;
+        }
+
+        // 클래스를 토글 (active가 있으면 보이고 없으면 숨겨짐)
         panel.classList.toggle('active');
 
-        // 채팅창이 열려있으면 버튼 숨기기 (선택사항)
+        // 채팅창이 열려있으면 말풍선 버튼 숨기기
         if(panel.classList.contains('active')) {
-            btn.style.display = 'none';
+            if(btn) btn.style.display = 'none';
         } else {
-            btn.style.display = 'flex';
+            if(btn) btn.style.display = 'flex';
         }
     }
     function init(implementation, config) {
